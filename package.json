@@ -1,0 +1,69 @@
+{
+  "name": "select-lab",
+  "version": "1.0.0",
+  "description": "Framework-agnostic super-select web components (single & multi) with server-side pagination, search, virtualization and data-driven theming.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "web-components",
+    "custom-elements",
+    "select",
+    "dropdown",
+    "combobox",
+    "autocomplete",
+    "multiselect",
+    "lit",
+    "virtual-scroll",
+    "angular",
+    "vue",
+    "svelte"
+  ],
+  "files": [
+    "dist"
+  ],
+  "author": "MonsDz",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MonsDz/select_lab.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MonsDz/select_lab/issues"
+  },
+  "homepage": "https://github.com/MonsDz/select_lab#readme",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./single": {
+      "types": "./dist/single/select-lab.d.ts",
+      "import": "./dist/single/select-lab.js"
+    },
+    "./multi": {
+      "types": "./dist/multi/select-lab-multi.d.ts",
+      "import": "./dist/multi/select-lab-multi.js"
+    },
+    "./core": {
+      "types": "./dist/core/base-select.d.ts",
+      "import": "./dist/core/base-select.js"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && tsc --emitDeclarationOnly --outDir dist",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "node tests/data-controller.test.ts",
+    "test:browser": "node tests/browser-smoke.mjs"
+  },
+  "dependencies": {
+    "@floating-ui/dom": "^1.6.13",
+    "lit": "^3.2.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.12",
+    "puppeteer-core": "^25.3.0",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11"
+  }
+}

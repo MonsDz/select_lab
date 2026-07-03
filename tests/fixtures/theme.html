@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>select-lab theme check</title>
+    <style>
+      body { font-family: system-ui, sans-serif; padding: 24px; background: #f5f5f5; }
+      html.dark body { background: #050506; }
+      select-lab { width: 320px; display: block; }
+
+      /* verbatim copy of estimates-new/src/styles.css .boutique-select-lab block */
+      .boutique-select-lab {
+        --sl-radius: 1rem;
+        --sl-control-bg: rgba(249, 250, 251, 0.3);
+        --sl-control-border: rgba(229, 231, 235, 0.3);
+        --sl-control-border-hover: rgba(209, 213, 219, 0.6);
+        --sl-control-min-height: 46px;
+        --sl-text: rgb(23, 23, 31);
+        --sl-muted: rgb(156, 163, 175);
+        --sl-placeholder: rgb(107, 114, 128);
+        --sl-accent: rgb(99, 102, 241);
+        --sl-focus-ring: rgba(99, 102, 241, 0.2);
+        --sl-panel-bg: rgb(249, 250, 251);
+        --sl-panel-border: rgba(229, 231, 235, 0.5);
+        --sl-panel-radius: 1rem;
+        --sl-panel-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        --sl-option-hover-bg: rgba(229, 231, 235, 0.6);
+        --sl-option-selected-bg: rgba(99, 102, 241, 0.1);
+        --sl-option-selected-text: rgb(67, 56, 202);
+        --sl-icon-color: rgb(99, 102, 241);
+        --sl-chip-bg: rgba(99, 102, 241, 0.12);
+        --sl-chip-text: rgb(67, 56, 202);
+      }
+      .dark .boutique-select-lab {
+        --sl-control-bg: rgba(9, 9, 11, 0.3);
+        --sl-control-border: rgba(39, 39, 42, 0.3);
+        --sl-control-border-hover: rgba(63, 63, 70, 0.7);
+        --sl-text: rgb(249, 250, 251);
+        --sl-muted: rgb(107, 114, 128);
+        --sl-placeholder: rgb(107, 114, 128);
+        --sl-panel-bg: rgb(9, 9, 11);
+        --sl-panel-border: rgba(39, 39, 42, 0.5);
+        --sl-panel-shadow: 0 12px 34px rgba(0, 0, 0, 0.5);
+        --sl-option-hover-bg: rgba(39, 39, 42, 0.6);
+        --sl-option-selected-bg: rgba(99, 102, 241, 0.14);
+        --sl-option-selected-text: rgb(129, 140, 248);
+        --sl-icon-color: rgb(129, 140, 248);
+        --sl-chip-bg: rgba(129, 140, 248, 0.16);
+        --sl-chip-text: rgb(199, 210, 254);
+      }
+    </style>
+  </head>
+  <body>
+    <select-lab id="s" class="boutique-select-lab" value-field="id" label-field="label"></select-lab>
+
+    <script src="select-lab-bundle.js"></script>
+    <script>
+      document.getElementById('s').items = [
+        { id: 1, label: 'Acme Corp' },
+        { id: 2, label: 'Globex' },
+      ];
+    </script>
+  </body>
+</html>

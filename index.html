@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>select-lab · demo</title>
+    <!-- Font used only to demo icon-font-class (Material Symbols). Not required by the library. -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0"
+    />
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+      body {
+        margin: 0;
+        padding: 2rem clamp(1rem, 4vw, 3rem) 6rem;
+        background: #fafafa;
+        color: #18181b;
+      }
+      @media (prefers-color-scheme: dark) {
+        body { background: #09090b; color: #e4e4e7; }
+      }
+      h1 { font-size: 1.4rem; margin: 0 0 0.25rem; }
+      .sub { color: #71717a; margin: 0 0 2rem; font-size: 0.9rem; }
+      .grid { display: grid; gap: 2rem; max-width: 560px; }
+      .card {
+        display: grid; gap: 0.5rem;
+      }
+      label.field { font-size: 0.8rem; font-weight: 600; color: #52525b; }
+      @media (prefers-color-scheme: dark) { label.field { color: #a1a1aa; } }
+      pre {
+        margin: 0; padding: 0.6rem 0.8rem; border-radius: 8px;
+        background: rgba(99,102,241,0.08); color: inherit;
+        font-size: 0.8rem; overflow-x: auto; min-height: 1.2rem;
+      }
+      /* Example of deep styling via ::part — no !important needed. */
+      #themed::part(control) { border-color: #10b981; border-radius: 999px; }
+      #themed::part(panel) { border-radius: 16px; }
+    </style>
+  </head>
+  <body>
+    <h1>select-lab</h1>
+    <p class="sub">Web components framework-agnósticos · paginación server-side + búsqueda + virtualización</p>
+
+    <div class="grid">
+      <div class="card">
+        <label class="field">Simple · 10.000 clientes (API mock, iconos + color por-item)</label>
+        <select-lab
+          id="single"
+          value-field="id"
+          label-field="name"
+          description-field="email"
+          icon-field="icon"
+          icon-color-field="color"
+          placeholder="Buscar cliente…"
+        ></select-lab>
+        <pre id="single-out">value: null</pre>
+      </div>
+
+      <div class="card">
+        <label class="field">Múltiple · chips + valor array</label>
+        <select-lab-multi
+          id="multi"
+          value-field="id"
+          label-field="name"
+          icon-field="icon"
+          icon-color-field="color"
+          placeholder="Añadir clientes…"
+        ></select-lab-multi>
+        <pre id="multi-out">value: []</pre>
+      </div>
+
+      <div class="card">
+        <label class="field">Estático + Material Symbols (icon-font-class) + estilado por ::part</label>
+        <select-lab
+          id="themed"
+          value-field="value"
+          label-field="label"
+          description-field="hint"
+          icon-field="icon"
+          icon-font-family="Material Symbols Rounded"
+          placeholder="Elegir estado…"
+        ></select-lab>
+        <pre id="themed-out">value: null</pre>
+      </div>
+    </div>
+
+    <script type="module" src="/demo/main.ts"></script>
+  </body>
+</html>

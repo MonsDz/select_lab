@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>select-lab icon adapter</title>
+    <style>body { font-family: system-ui, sans-serif; padding: 24px; } select-lab { width: 340px; display: block; margin-bottom: 16px; }</style>
+  </head>
+  <body>
+    <!-- (A) simulate a third-party icon library that ships a Custom Element,
+         e.g. <ion-icon>, <iconify-icon>, Shoelace's <sl-icon>. Registered
+         globally by "their" script, BEFORE select-lab ever renders anything. -->
+    <script>
+      customElements.define('fake-lib-icon', class extends HTMLElement {
+        connectedCallback() {
+          this.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" class="upgraded-mark"><rect width="24" height="24"/></svg>';
+        }
+      });
+    </script>
+
+    <select-lab id="ce" value-field="value" label-field="label" icon-field="icon"></select-lab>
+    <select-lab id="fn" value-field="value" label-field="label" icon-field="icon"></select-lab>
+
+    <script src="select-lab-bundle.js"></script>
+    <script>
+      // (A) custom-element icon library passthrough — icon field is just markup text
+      document.getElementById('ce').items = [
+        { value: 'a', label: 'From a 3rd-party icon lib', icon: '<fake-lib-icon name="home"></fake-lib-icon>' },
+      ];
+
+      // (B) iconRenderer hook — simulate a Font-Awesome-style JS API that returns
+      // an SVG string from an icon name, without select-lab knowing anything about it.
+      function fakeFontAwesomeApi(iconName) {
+        return '<svg class="fa-generated" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>';
+      }
+      const el = document.getElementById('fn');
+      el.items = [{ value: 'b', label: 'Rendered via iconRenderer hook', faIcon: 'house', color: '#f59e0b' }];
+      el.iconColorField = 'color';
+      el.iconRenderer = (item) => fakeFontAwesomeApi(item.faIcon);
+    </script>
+  </body>
+</html>

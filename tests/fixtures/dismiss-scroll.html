@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>select-lab scroll dismiss</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; }
+      .spacer { height: 1200px; background: linear-gradient(#eee, #ddd); }
+      .anchor-zone { padding: 40px; }
+      select-lab { width: 280px; display: block; }
+      /* a nested scrollable ancestor, independent of the page/window scroll */
+      .nested-scroller { height: 200px; overflow: auto; border: 2px solid #999; padding: 20px; }
+      .nested-inner { height: 800px; }
+    </style>
+  </head>
+  <body>
+    <div class="spacer"></div>
+    <div class="anchor-zone">
+      <select-lab id="s" value-field="id" label-field="label"></select-lab>
+    </div>
+    <div class="spacer"></div>
+
+    <div class="nested-scroller" id="nested">
+      <div class="nested-inner">
+        <select-lab id="s2" value-field="id" label-field="label"></select-lab>
+      </div>
+    </div>
+
+    <script src="select-lab-bundle.js"></script>
+    <script>
+      const items = Array.from({ length: 60 }, (_, i) => ({ id: i + 1, label: 'Option ' + (i + 1) }));
+      document.getElementById('s').items = items;
+      document.getElementById('s2').items = items;
+    </script>
+  </body>
+</html>

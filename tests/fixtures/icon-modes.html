@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>select-lab icon modes</title>
+    <style>
+      body { font-family: system-ui, sans-serif; padding: 24px; }
+      select-lab { width: 320px; display: block; }
+    </style>
+  </head>
+  <body>
+    <select-lab
+      id="s"
+      value-field="value"
+      label-field="label"
+      icon-field="icon"
+      icon-color-field="color"
+      style="--sl-icon-font-family: 'Material Symbols Rounded'; --sl-icon-size: 20px;"
+    ></select-lab>
+
+    <script src="select-lab-bundle.js"></script>
+    <script>
+      document.getElementById('s').items = [
+        { value: 'a', label: 'Ligature font', icon: 'home', color: '#ef4444' },
+        { value: 'b', label: 'Emoji', icon: '🏢' },
+        { value: 'c', label: 'Raw SVG', icon: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9"></circle></svg>', color: '#10b981' },
+      ];
+    </script>
+  </body>
+</html>
