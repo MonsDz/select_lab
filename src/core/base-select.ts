@@ -5,6 +5,7 @@ import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
 import { baseStyles } from './styles';
 import { get, looksLikeUrl } from './utils';
+import { isSafeIconMarkup } from './safe-icon';
 import { DataController } from './data-controller';
 import { VirtualListController } from './virtual-list-controller';
 import { PositioningController } from './positioning-controller';
@@ -13,6 +14,8 @@ import type { DataSource, SelectItem, LoadParams } from './types';
 
 type Renderer = (item: SelectItem) => TemplateResult | string;
 type IconRenderer = (item: SelectItem, iconValue: any) => TemplateResult | string | null | undefined;
+
+let warnedAboutIconMarkup = false;
 
 /**
  * Shared engine for the select family. `<select-lab>` (single) and
@@ -49,6 +52,9 @@ export class SelectLabBase extends LitElement {
   /** Opt-in: clone the page's stylesheets into the shadow root so class-based icon
    *  fonts (Font Awesome, Bootstrap Icons…) work without rewriting their CSS. */
   @property({ type: Boolean, attribute: 'inherit-styles' }) inheritStyles = false;
+  /** Render any markup found in an icon value, instead of only markup that can do nothing
+   *  but draw an icon. Set it only when no icon value comes from user data. */
+  @property({ type: Boolean, attribute: 'allow-icon-html' }) allowIconHtml = false;
 
   // ---- behavior ----
   @property({ type: Number, attribute: 'page-size' }) pageSize = 50;
@@ -631,18 +637,25 @@ export class SelectLabBase extends LitElement {
 
   /**
    * Renders whatever the data carries, library-agnostic. In precedence order:
-   *  1. raw markup ("<svg…>", "<i class='fa…'>", "<span class='material-symbols…'>") → unsafeHTML
+   *  1. markup ("<svg…>", "<i class='fa…'>", "<ion-icon…>") that passes isSafeIconMarkup,
+   *     or any markup with `allow-icon-html`                                          → unsafeHTML
    *  2. image (url / data-uri / path)                                              → <img>
    *  3. glyph (emoji · ligature icon-font · unicode char)                          → text node,
    *     the icon-font applies via the --sl-icon-font-family token (@font-face is global,
    *     custom properties pierce Shadow DOM — unlike the utility class rules).
-   * NOTE: raw markup is injected as-is; only pass icon markup you control.
    */
   private renderIcon(value: any, color?: any) {
     const style = color ? `color:${color}` : nothing;
     const str = typeof value === 'string' ? value : String(value ?? '');
 
     if (str.trimStart().startsWith('<')) {
+      if (!this.allowIconHtml && !isSafeIconMarkup(str)) {
+        if (!warnedAboutIconMarkup) {
+          warnedAboutIconMarkup = true;
+          console.warn('select-lab: skipped icon markup that could do more than draw an icon. Set allow-icon-html only if no icon value comes from user data.');
+        }
+        return nothing;
+      }
       return html`<span class="icon icon-html" part="option-icon" style=${style} aria-hidden="true"
         >${unsafeHTML(str)}</span
       >`;
