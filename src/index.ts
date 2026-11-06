@@ -6,4 +6,4 @@ export { SelectLabMulti } from './multi/select-lab-multi';
 import './multi/select-lab-multi';
 
 export { SelectLabBase } from './core/base-select';
-export type { DataSource, LoadParams, LoadResult, SelectItem } from './core/types';
+export type { DataSource, LoadParams, LoadResult, SelectItem, SelectLabTexts } from './core/types';

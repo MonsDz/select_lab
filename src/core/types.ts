@@ -1,5 +1,15 @@
 export type SelectItem = Record<string, any>;
 
+/** Every text the component shows or announces, for translation. */
+export interface SelectLabTexts {
+  loading: string;
+  error: string;
+  retry: string;
+  empty: string;
+  remove: string;
+  required: string;
+}
+
 export interface LoadParams {
   /** Current search term (already debounced). */
   search: string;
