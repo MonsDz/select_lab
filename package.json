@@ -1,6 +1,6 @@
 {
   "name": "select-lab",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Framework-agnostic super-select web components (single & multi) with server-side pagination, search, virtualization and data-driven theming.",
   "type": "module",
   "license": "MIT",
@@ -51,16 +51,21 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && tsc --emitDeclarationOnly --outDir dist",
+    "prepublishOnly": "npm run build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "node tests/data-controller.test.ts",
-    "test:browser": "node tests/browser-smoke.mjs"
+    "test:browser": "node tests/browser-smoke.mjs",
+    "test:a11y": "node tests/a11y-check.mjs",
+    "test:compat": "node tests/compat-check.mjs",
+    "test:icons": "node tests/icon-security-check.mjs"
   },
   "dependencies": {
     "@floating-ui/dom": "^1.6.13",
     "lit": "^3.2.1"
   },
   "devDependencies": {
+    "axe-core": "^4.14.0",
     "esbuild": "^0.25.12",
     "puppeteer-core": "^25.3.0",
     "typescript": "^5.7.3",

@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>select-lab compatibility</title>
+    <style>
+      body { font-family: system-ui, sans-serif; padding: 24px; }
+      select-lab, select-lab-multi { display: block; width: 320px; margin-bottom: 16px; }
+      .mapped { --sl-control-bg: rgb(1, 2, 3); --sl-text: rgb(4, 5, 6); }
+    </style>
+  </head>
+  <body>
+    <form id="form">
+      <select-lab
+        id="clients"
+        class="mapped"
+        name="client_id"
+        value-field="id"
+        label-field="company"
+        description-field="contact_name"
+        icon-field="icon"
+        icon-color-field="color"
+        icon-font-family="Material Symbols Rounded"
+        page-size="7"
+        placeholder="Search client…"
+        search-placeholder="Search client…"
+      ></select-lab>
+      <select-lab id="status" value-field="value" label-field="label" icon-field="icon" icon-color-field="color" searchable></select-lab>
+      <select-lab id="plain" value-field="id" label-field="name" placeholder="Pick"></select-lab>
+      <select-lab id="locked" value-field="id" label-field="name" disabled></select-lab>
+      <select-lab id="empty" value-field="id" label-field="name"><span slot="empty">Nada por aquí</span></select-lab>
+      <select-lab-multi id="tags" name="tags" value-field="id" label-field="name"></select-lab-multi>
+    </form>
+  </body>
+</html>

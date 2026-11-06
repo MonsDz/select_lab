@@ -62,7 +62,11 @@ export class DismissController implements ReactiveController {
   };
 
   private onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') this.opts.onDismiss();
+    if (e.key !== 'Escape') return;
+    // Escape closes this list only, not the dialog or drawer that contains it.
+    e.preventDefault();
+    e.stopPropagation();
+    this.opts.onDismiss();
   };
 
   private onScroll = (e: Event) => {

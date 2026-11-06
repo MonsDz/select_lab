@@ -28,6 +28,9 @@ npm run typecheck
 npm run build
 npm test               # DataController engine (pagination/search/cache/abort)
 npm run test:browser   # drives the real UI in Chrome — start `npm run dev` first
+npm run test:a11y      # axe audit, keyboard, focus and screen-reader wiring
+npm run test:compat    # what existing integrations rely on; must keep passing unchanged
+npm run test:icons     # icon values that must never run code
 ```
 
 Other browser checks under `tests/` (icon adapters, theming cascade, scroll-dismiss) are fully self-contained — they build their own bundle and load a local fixture from `tests/fixtures/`, so just run them directly, e.g. `node tests/theme-check.mjs`. No dev server needed for these.

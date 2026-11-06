@@ -15,7 +15,7 @@ export const baseStyles = css`
     --sl-control-min-height: 40px;
     --sl-text: #18181b;
     --sl-muted: #71717a;
-    --sl-placeholder: #9ca3af;
+    --sl-placeholder: #6b7280;
     --sl-accent: #6366f1;
     --sl-focus-ring: rgba(99, 102, 241, 0.35);
     --sl-panel-bg: #ffffff;
@@ -43,7 +43,7 @@ export const baseStyles = css`
     --sl-control-border-hover: #52525b;
     --sl-text: #f4f4f5;
     --sl-muted: #a1a1aa;
-    --sl-placeholder: #71717a;
+    --sl-placeholder: #a1a1aa;
     --sl-panel-bg: #18181b;
     --sl-panel-border: #27272a;
     --sl-panel-shadow: 0 12px 34px rgba(0, 0, 0, 0.5);
@@ -61,7 +61,7 @@ export const baseStyles = css`
       --sl-control-border-hover: #52525b;
       --sl-text: #f4f4f5;
       --sl-muted: #a1a1aa;
-      --sl-placeholder: #71717a;
+      --sl-placeholder: #a1a1aa;
       --sl-panel-bg: #18181b;
       --sl-panel-border: #27272a;
       --sl-panel-shadow: 0 12px 34px rgba(0, 0, 0, 0.5);
@@ -106,11 +106,22 @@ export const baseStyles = css`
   }
   /* Accent border: while open/focused, AND persistently once a value is set
      (a "filled field" affordance) — not just during interaction. */
-  .control:focus-visible,
-  :host([open]) .control,
   .control.has-value {
+    border-color: var(--sl-filled-border, var(--sl-accent));
+    box-shadow: var(--sl-filled-shadow, 0 0 0 3px var(--sl-focus-ring));
+  }
+  .control:focus-visible,
+  :host([open]) .control {
     border-color: var(--sl-accent);
     box-shadow: 0 0 0 3px var(--sl-focus-ring);
+  }
+  /* A filled field already wears the ring above, so keyboard focus needs its own mark. */
+  .control:focus-visible {
+    outline: var(--sl-focus-outline, 2px solid var(--sl-accent));
+    outline-offset: 2px;
+  }
+  :host([invalid]) .control {
+    border-color: var(--sl-invalid-border, #dc2626);
   }
 
   .value {
@@ -328,11 +339,33 @@ export const baseStyles = css`
   }
 
   /* ---- status rows ---- */
+  .status-region {
+    position: relative;
+  }
   .status {
     padding: 10px 12px;
     font-size: 0.82rem;
     color: var(--sl-muted);
     text-align: center;
+  }
+  /* Loading another page floats over the list, so the rows don't jump. */
+  .status.is-floating {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--sl-panel-bg);
+  }
+  .retry {
+    margin-inline-start: 6px;
+    padding: 2px 4px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--sl-text);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
   }
   .spinner {
     display: inline-block;
@@ -350,6 +383,15 @@ export const baseStyles = css`
   @keyframes sl-spin {
     to {
       transform: rotate(360deg);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .control,
+    .arrow {
+      transition: none;
+    }
+    .spinner {
+      animation-duration: 2.4s;
     }
   }
 `;

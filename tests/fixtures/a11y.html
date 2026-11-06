@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>select-lab accessibility</title>
+    <style>
+      body { font-family: system-ui, sans-serif; padding: 24px; background: #fff; color: #18181b; }
+      main > div { margin-bottom: 16px; width: 320px; }
+      dialog { width: 360px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Accessibility</h1>
+      <div>
+        <label for="labelled">Segment</label>
+        <select-lab id="labelled" value-field="id" label-field="name" placeholder="Pick one" search-placeholder="Find a segment"></select-lab>
+      </div>
+      <div>
+        <select-lab id="named" label="Named explicitly" value-field="id" label-field="name" placeholder="Pick one"></select-lab>
+      </div>
+      <div>
+        <select-lab id="placeholder-only" value-field="id" label-field="name" placeholder="Search client"></select-lab>
+      </div>
+      <div>
+        <label for="multi">Tags</label>
+        <select-lab-multi id="multi" value-field="id" label-field="name" placeholder="Pick several"></select-lab-multi>
+      </div>
+      <div>
+        <label for="described">Owner</label>
+        <select-lab id="described" described-by="described-hint" required invalid value-field="id" label-field="name" placeholder="Pick one"></select-lab>
+        <p id="described-hint">Choose who follows up</p>
+      </div>
+      <div>
+        <label for="plain">Plain list</label>
+        <select-lab id="plain" value-field="id" label-field="name" placeholder="Pick one"></select-lab>
+      </div>
+      <div>
+        <label for="resolved">Saved value</label>
+        <select-lab id="resolved" value-field="id" label-field="name" placeholder="Pick one"></select-lab>
+      </div>
+      <div>
+        <label for="failing">Failing</label>
+        <select-lab id="failing" value-field="id" label-field="name" placeholder="Pick one"></select-lab>
+      </div>
+      <div>
+        <label for="translated">Translated</label>
+        <select-lab-multi id="translated" required value-field="id" label-field="name" placeholder="Elige"></select-lab-multi>
+      </div>
+      <button type="button" id="after">After</button>
+    </main>
+
+    <dialog id="dialog">
+      <label for="in-dialog">Inside a dialog</label>
+      <select-lab id="in-dialog" value-field="id" label-field="name" placeholder="Pick one"></select-lab>
+    </dialog>
+
+    <script src="select-lab-bundle.js"></script>
+    <script>
+      const rows = Array.from({ length: 1000 }, (_, i) => ({ id: 'id-' + i, name: 'Option ' + i }));
+      rows[0].name = 'A very long name that cannot possibly fit on a single row of this select, so it gets cut with an ellipsis';
+      window.source = ({ search, offset, limit }) => {
+        const found = search ? rows.filter((row) => row.name.includes(search)) : rows;
+        return { items: found.slice(offset, offset + limit), total: found.length };
+      };
+      for (const id of ['labelled', 'named', 'placeholder-only', 'multi', 'described', 'resolved', 'in-dialog', 'translated']) {
+        document.getElementById(id).dataSource = window.source;
+      }
+      document.getElementById('plain').items = rows.slice(1, 6);
+      document.getElementById('plain').searchable = false;
+      document.getElementById('translated').texts = {
+        loading: 'Cargando…', error: 'No se pudo cargar', retry: 'Reintentar', empty: 'Sin resultados',
+        remove: 'Quitar', required: 'Elige una opción.',
+      };
+    </script>
+  </body>
+</html>

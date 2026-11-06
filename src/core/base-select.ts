@@ -5,14 +5,26 @@ import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
 import { baseStyles } from './styles';
 import { get, looksLikeUrl } from './utils';
+import { isSafeIconMarkup } from './safe-icon';
 import { DataController } from './data-controller';
 import { VirtualListController } from './virtual-list-controller';
 import { PositioningController } from './positioning-controller';
 import { DismissController } from './dismiss-controller';
-import type { DataSource, SelectItem, LoadParams } from './types';
+import type { DataSource, SelectItem, SelectLabTexts, LoadParams } from './types';
 
 type Renderer = (item: SelectItem) => TemplateResult | string;
 type IconRenderer = (item: SelectItem, iconValue: any) => TemplateResult | string | null | undefined;
+
+let warnedAboutIconMarkup = false;
+
+const DEFAULT_TEXTS: SelectLabTexts = {
+  loading: 'Loading…',
+  error: 'Failed to load',
+  retry: 'Retry',
+  empty: 'No results',
+  remove: 'Remove',
+  required: 'Please select a value.',
+};
 
 /**
  * Shared engine for the select family. `<select-lab>` (single) and
@@ -49,6 +61,9 @@ export class SelectLabBase extends LitElement {
   /** Opt-in: clone the page's stylesheets into the shadow root so class-based icon
    *  fonts (Font Awesome, Bootstrap Icons…) work without rewriting their CSS. */
   @property({ type: Boolean, attribute: 'inherit-styles' }) inheritStyles = false;
+  /** Render any markup found in an icon value, instead of only markup that can do nothing
+   *  but draw an icon. Set it only when no icon value comes from user data. */
+  @property({ type: Boolean, attribute: 'allow-icon-html' }) allowIconHtml = false;
 
   // ---- behavior ----
   @property({ type: Number, attribute: 'page-size' }) pageSize = 50;
@@ -63,10 +78,17 @@ export class SelectLabBase extends LitElement {
   @property({ type: Boolean, attribute: 'close-on-scroll' }) closeOnScroll = true;
   @property({ type: String }) placeholder = 'Select…';
   @property({ type: String, attribute: 'search-placeholder' }) searchPlaceholder = 'Search…';
+  /** Translations for the built-in texts. Slots still win over these. */
+  @property({ attribute: false }) texts?: Partial<SelectLabTexts>;
+  /** Accessible name. Falls back to an associated <label>, then to the placeholder. */
+  @property({ type: String }) label?: string;
+  /** Space-separated ids of elements, next to this one, that describe it (a hint or an error). */
+  @property({ type: String, attribute: 'described-by' }) describedBy?: string;
 
   // ---- form / state ----
   @property({ type: Boolean, reflect: true }) disabled = false;
   @property({ type: Boolean, reflect: true }) required = false;
+  @property({ type: Boolean, reflect: true }) invalid = false;
   @property({ type: String, reflect: true }) name?: string;
   @property({ attribute: false }) value: any = null;
   @property({ type: Boolean, reflect: true }) open = false;
@@ -87,6 +109,9 @@ export class SelectLabBase extends LitElement {
   protected multiple = false;
   @state() private activeIndex = -1;
   @state() private _selected: SelectItem[] = [];
+  @state() private resolving = false;
+  private resolveRun = 0;
+  private restoreFocus = false;
 
   private data: DataController;
   private virtual: VirtualListController;
@@ -109,7 +134,17 @@ export class SelectLabBase extends LitElement {
       onDismiss: () => this.close(),
       closeOnScroll: () => this.closeOnScroll, // live read, not a one-time snapshot
     });
+    this.addEventListener('click', this.onHostClick);
   }
+
+  focus(options?: FocusOptions) {
+    if (!this.disabled) this.controlEl?.focus(options);
+  }
+
+  // A <label for> activates the host itself; clicks on the control start inside the shadow root.
+  private onHostClick = (e: Event) => {
+    if (e.composedPath()[0] === this) this.focus();
+  };
 
   connectedCallback(): void {
     super.connectedCallback();
@@ -145,6 +180,8 @@ export class SelectLabBase extends LitElement {
   };
 
   willUpdate(changed: PropertyValues) {
+    // Closing removes the search box; focus inside it would otherwise fall to <body>.
+    if (changed.has('open') && !this.open && this.shadowRoot?.activeElement) this.restoreFocus = true;
     if (changed.has('pageSize') || changed.has('debounce')) {
       this.data.setConfig({ pageSize: this.pageSize, debounceMs: this.debounce });
     }
@@ -172,6 +209,7 @@ export class SelectLabBase extends LitElement {
     if (this.open && this.listEl) {
       this.virtual.update(this.data.items.length, this.listEl.scrollTop, this.listEl.clientHeight);
     }
+    this.syncDescribedBy();
   }
 
   firstUpdated() {
@@ -205,8 +243,13 @@ export class SelectLabBase extends LitElement {
     if (this.open) this.open = false;
   }
 
+  private retry = () => {
+    void (this.data.items.length ? this.data.loadMore() : this.data.reload());
+  };
+
   private onOpened() {
-    this.data.ensureLoaded();
+    if (this.data.error) this.retry();
+    else this.data.ensureLoaded();
     this.dismiss.activate();
     this.resetActive();
     this.updateComplete.then(() => {
@@ -226,6 +269,10 @@ export class SelectLabBase extends LitElement {
   private onClosed() {
     this.positioning.stop();
     this.dismiss.deactivate();
+    if (this.restoreFocus) {
+      this.restoreFocus = false;
+      this.controlEl?.focus({ preventScroll: true });
+    }
     this.emit('close');
   }
 
@@ -254,6 +301,8 @@ export class SelectLabBase extends LitElement {
 
   // ---- keyboard ----
   private onKeyDown = (e: KeyboardEvent) => {
+    // The chip remove buttons sit inside the control; their keys are their own.
+    if ((e.target as HTMLElement).closest('.chip-x')) return;
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
@@ -275,19 +324,16 @@ export class SelectLabBase extends LitElement {
           this.setActive(this.data.items.length - 1);
         }
         break;
+      case ' ':
       case 'Enter':
+        if (e.key === ' ' && e.target === this.searchEl) break;
+        e.preventDefault();
         if (this.open) {
-          e.preventDefault();
           const it = this.data.items[this.activeIndex];
           if (it) this.onOptionClick(it);
+          else if (this.data.error) this.retry();
         } else {
           this.open = true;
-        }
-        break;
-      case 'Escape':
-        if (this.open) {
-          e.preventDefault();
-          this.close();
         }
         break;
       case 'Tab':
@@ -343,11 +389,12 @@ export class SelectLabBase extends LitElement {
     if (this.disabled) return;
     if (this.multiple) {
       this.isSelected(item) ? this.deselect(item) : this.addSelection(item);
-      if (this.searchEl) this.searchEl.focus();
+      (this.searchEl ?? this.controlEl)?.focus();
     } else {
       this.value = get(item, this.valueField);
       this._selected = [item];
       this.commit();
+      this.restoreFocus = true;
       this.close();
     }
   }
@@ -406,7 +453,7 @@ export class SelectLabBase extends LitElement {
     if (this.required && empty) {
       this.internals.setValidity(
         { valueMissing: true },
-        'Please select a value.',
+        this.t.required,
         this.controlEl ?? undefined
       );
     } else {
@@ -415,6 +462,8 @@ export class SelectLabBase extends LitElement {
   }
 
   private async syncSelected() {
+    const run = ++this.resolveRun;
+    this.resolving = false;
     const values = this.multiple
       ? Array.isArray(this.value)
         ? this.value
@@ -436,14 +485,18 @@ export class SelectLabBase extends LitElement {
     }
     this._selected = result;
     if (missing.length && this.resolveValue) {
+      this.resolving = true;
       for (const v of missing) {
         try {
           const it = await this.resolveValue(v);
+          if (run !== this.resolveRun) return;
           if (it) this._selected = [...this._selected, it];
         } catch {
           /* ignore resolution errors */
         }
       }
+      if (run !== this.resolveRun) return;
+      this.resolving = false;
       this.requestUpdate();
     }
   }
@@ -452,8 +505,42 @@ export class SelectLabBase extends LitElement {
     return this.multiple ? Array.isArray(this.value) && this.value.length > 0 : this.value != null;
   }
 
+  private get t(): SelectLabTexts {
+    return { ...DEFAULT_TEXTS, ...this.texts };
+  }
+
+  private get accessibleName(): string {
+    if (this.label) return this.label;
+    const fromLabels = Array.from(this.internals.labels ?? [])
+      .map((label) => label.textContent ?? '')
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return fromLabels || this.placeholder;
+  }
+
+  /** The active option, only while it is in the DOM: the list is virtualized. */
+  private get activeOptionId() {
+    const { start, end } = this.virtual;
+    return this.activeIndex >= start && this.activeIndex < end ? `sl-opt-${this.activeIndex}` : nothing;
+  }
+
+  // aria-describedby cannot cross the shadow boundary, but element references to an
+  // enclosing scope can. Looked up each time: the host page may replace those elements.
+  private syncDescribedBy = () => {
+    const root = this.getRootNode() as Document | ShadowRoot;
+    const elements = (this.describedBy ?? '')
+      .split(/\s+/)
+      .map((id) => (id ? root.getElementById(id) : null))
+      .filter(Boolean);
+    for (const el of [this.controlEl, this.searchEl]) {
+      if (el) (el as any).ariaDescribedByElements = elements;
+    }
+  };
+
   // ---- rendering ----
   render() {
+    const name = this.accessibleName;
     return html`
       <div
         class="control ${this.hasValue ? 'has-value' : ''}"
@@ -462,11 +549,15 @@ export class SelectLabBase extends LitElement {
         aria-haspopup="listbox"
         aria-expanded=${this.open}
         aria-controls=${this.open ? 'sl-listbox' : nothing}
-        aria-activedescendant=${this.open && this.activeIndex >= 0
-          ? `sl-opt-${this.activeIndex}`
-          : nothing}
+        aria-activedescendant=${this.open && !this.searchable ? this.activeOptionId : nothing}
+        aria-label=${name}
+        aria-required=${this.required ? 'true' : nothing}
+        aria-invalid=${this.invalid ? 'true' : nothing}
+        aria-disabled=${this.disabled ? 'true' : nothing}
+        aria-busy=${this.resolving ? 'true' : nothing}
         tabindex=${this.disabled ? -1 : 0}
         @click=${this.toggle}
+        @focus=${this.syncDescribedBy}
         @keydown=${this.onKeyDown}
       >
         <slot name="prefix"></slot>
@@ -474,18 +565,21 @@ export class SelectLabBase extends LitElement {
         <slot name="suffix"></slot>
         <span class="arrow" part="arrow" aria-hidden="true"></span>
       </div>
-      ${this.open ? this.renderPanel() : nothing}
+      ${this.open ? this.renderPanel(name) : nothing}
     `;
   }
 
   private renderControlValue() {
+    const waiting = html`<span class="spinner" part="value-loading" aria-hidden="true"></span>`;
     if (this.multiple) {
+      if (!this._selected.length && this.resolving) return waiting;
       if (!this._selected.length)
         return html`<span class="placeholder" part="placeholder">${this.placeholder}</span>`;
       return html`<div class="chips">${this._selected.map((it) => this.renderChip(it))}</div>`;
     }
     const it = this._selected[0];
     if (!it) {
+      if (this.resolving) return waiting;
       if (this.value != null) return html`<span class="value-raw">${String(this.value)}</span>`;
       return html`<span class="placeholder" part="placeholder">${this.placeholder}</span>`;
     }
@@ -496,15 +590,16 @@ export class SelectLabBase extends LitElement {
   private renderChip(item: SelectItem) {
     const iconVal = this.iconField ? get(item, this.iconField) : undefined;
     const iconColor = this.iconColorField ? get(item, this.iconColorField) : undefined;
+    const label = get(item, this.labelField);
     return html`
       <span class="chip" part="chip">
         ${this.renderIconSlot(item, iconVal, iconColor)}
-        <span class="chip-label">${get(item, this.labelField)}</span>
+        <span class="chip-label" title=${label ?? nothing}>${label}</span>
         <button
           class="chip-x"
           part="chip-remove"
           type="button"
-          aria-label="Remove"
+          aria-label="${this.t.remove} ${label}"
           @click=${(e: Event) => {
             e.stopPropagation();
             this.deselect(item);
@@ -516,7 +611,27 @@ export class SelectLabBase extends LitElement {
     `;
   }
 
-  private renderPanel() {
+  private renderStatus() {
+    const { loading, error, items } = this.data;
+    const t = this.t;
+    if (loading) {
+      return html`<div class="status ${items.length ? 'is-floating' : ''}" part="loading">
+        <span class="spinner"></span><slot name="loading">${t.loading}</slot>
+      </div>`;
+    }
+    if (error) {
+      return html`<div class="status" part="error">
+        <slot name="error">${t.error}</slot>
+        <button class="retry" part="retry" type="button" @click=${this.retry}>${t.retry}</button>
+      </div>`;
+    }
+    if (!items.length) {
+      return html`<div class="status" part="empty"><slot name="empty">${t.empty}</slot></div>`;
+    }
+    return nothing;
+  }
+
+  private renderPanel(name: string) {
     const items = this.data.items;
     const { start, end } = this.virtual;
     const slice = items.slice(start, end);
@@ -530,10 +645,17 @@ export class SelectLabBase extends LitElement {
                   class="search"
                   part="input"
                   type="text"
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-expanded="true"
+                  aria-controls="sl-listbox"
+                  aria-activedescendant=${this.activeOptionId}
+                  aria-label=${name}
                   autocomplete="off"
                   spellcheck="false"
                   .value=${this.data.search}
                   placeholder=${this.searchPlaceholder}
+                  @focus=${this.syncDescribedBy}
                   @input=${this.onSearchInput}
                   @keydown=${this.onKeyDown}
                   @click=${(e: Event) => e.stopPropagation()}
@@ -546,23 +668,15 @@ export class SelectLabBase extends LitElement {
           id="sl-listbox"
           part="listbox"
           role="listbox"
+          aria-label=${name}
+          aria-multiselectable=${this.multiple ? 'true' : nothing}
           @scroll=${this.onListScroll}
         >
           <div class="sizer" style=${styleMap({ height: `${sizerH}px` })}>
             ${slice.map((item, i) => this.renderRow(item, start + i))}
           </div>
-          ${this.data.loading
-            ? html`<div class="status" part="loading">
-                <span class="spinner"></span><slot name="loading">Loading…</slot>
-              </div>`
-            : nothing}
-          ${!this.data.loading && this.data.error
-            ? html`<div class="status" part="error"><slot name="error">Failed to load</slot></div>`
-            : nothing}
-          ${!this.data.loading && !this.data.error && items.length === 0
-            ? html`<div class="status" part="empty"><slot name="empty">No results</slot></div>`
-            : nothing}
         </div>
+        <div class="status-region" role="status" aria-atomic="true">${this.renderStatus()}</div>
         <slot name="footer"></slot>
       </div>
     `;
@@ -577,6 +691,7 @@ export class SelectLabBase extends LitElement {
       height: `${this.optionHeight}px`,
     };
     if (bg) style.background = bg;
+    const { total, hasMore, items } = this.data;
     return html`
       <div
         class="option ${selected ? 'is-selected' : ''} ${active ? 'is-active' : ''}"
@@ -584,6 +699,8 @@ export class SelectLabBase extends LitElement {
         role="option"
         id="sl-opt-${index}"
         aria-selected=${selected}
+        aria-posinset=${index + 1}
+        aria-setsize=${total ?? (hasMore ? -1 : items.length)}
         style=${styleMap(style)}
         @click=${() => this.onOptionClick(item)}
         @mousemove=${() => {
@@ -604,10 +721,16 @@ export class SelectLabBase extends LitElement {
     return html`
       ${this.renderIconSlot(item, iconVal, iconColor)}
       <span class="labels">
-        <span class="label" part="option-label" style=${textColor ? `color:${textColor}` : nothing}
+        <span
+          class="label"
+          part="option-label"
+          title=${label ?? nothing}
+          style=${textColor ? `color:${textColor}` : nothing}
           >${label}</span
         >
-        ${desc ? html`<span class="desc" part="option-description">${desc}</span>` : nothing}
+        ${desc
+          ? html`<span class="desc" part="option-description" title=${desc}>${desc}</span>`
+          : nothing}
       </span>
     `;
   }
@@ -631,18 +754,25 @@ export class SelectLabBase extends LitElement {
 
   /**
    * Renders whatever the data carries, library-agnostic. In precedence order:
-   *  1. raw markup ("<svg…>", "<i class='fa…'>", "<span class='material-symbols…'>") → unsafeHTML
+   *  1. markup ("<svg…>", "<i class='fa…'>", "<ion-icon…>") that passes isSafeIconMarkup,
+   *     or any markup with `allow-icon-html`                                          → unsafeHTML
    *  2. image (url / data-uri / path)                                              → <img>
    *  3. glyph (emoji · ligature icon-font · unicode char)                          → text node,
    *     the icon-font applies via the --sl-icon-font-family token (@font-face is global,
    *     custom properties pierce Shadow DOM — unlike the utility class rules).
-   * NOTE: raw markup is injected as-is; only pass icon markup you control.
    */
   private renderIcon(value: any, color?: any) {
     const style = color ? `color:${color}` : nothing;
     const str = typeof value === 'string' ? value : String(value ?? '');
 
     if (str.trimStart().startsWith('<')) {
+      if (!this.allowIconHtml && !isSafeIconMarkup(str)) {
+        if (!warnedAboutIconMarkup) {
+          warnedAboutIconMarkup = true;
+          console.warn('select-lab: skipped icon markup that could do more than draw an icon. Set allow-icon-html only if no icon value comes from user data.');
+        }
+        return nothing;
+      }
       return html`<span class="icon icon-html" part="option-icon" style=${style} aria-hidden="true"
         >${unsafeHTML(str)}</span
       >`;
