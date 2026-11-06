@@ -269,6 +269,26 @@ try {
   await axe('open without a search box');
   await page.keyboard.press('Escape');
 
+  // --- cursor pagination, through the real component
+  await page.evaluate(() => {
+    const rows = Array.from({ length: 120 }, (_, i) => ({ id: 'c-' + i, name: 'Row ' + i }));
+    window.cursors = [];
+    document.getElementById('named').dataSource = ({ cursor, limit }) => {
+      window.cursors.push(cursor);
+      const start = cursor ? Number(cursor) : 0;
+      const end = start + limit;
+      return { items: rows.slice(start, end), nextCursor: end < rows.length ? String(end) : null, ...(cursor ? {} : { total: rows.length }) };
+    };
+  });
+  await openWithKeyboard('named');
+  for (let i = 0; i < 3; i++) {
+    await inRoot('named', (root) => { const list = root.querySelector('.listbox'); list.scrollTop = list.scrollHeight; });
+    await wait(80);
+  }
+  ok(JSON.stringify(await page.evaluate(() => window.cursors)) === '[null,"50","100"]', 'scrolling asks for each page with the cursor it was given');
+  ok((await inRoot('named', (root) => root.querySelector('[role=option]').getAttribute('aria-setsize'))) === '120', 'the total from the first page keeps reporting the list size');
+  await page.keyboard.press('Escape');
+
   ok(errors.length === 0, 'no runtime errors');
   console.log(`\nAccessibility OK — ${pass} checks passed.`);
 } catch (e) {

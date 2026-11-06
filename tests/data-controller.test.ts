@@ -86,4 +86,55 @@ const ok = (cond: boolean, msg: string) => {
   ok(c.items.length === 1 && (c.items[0] as any).id === 'second', 'aborted slow request did not overwrite newer result');
 }
 
+// Cursor pagination: the source decides where the next page starts and when the list ends.
+{
+  const all = range(25);
+  const asked: (string | null)[] = [];
+  const c = new DataController(fakeHost(), { pageSize: 10, debounceMs: 5 });
+  c.dataSource = ({ cursor, limit }) => {
+    asked.push(cursor);
+    const start = cursor ? Number(cursor) : 0;
+    const end = start + limit;
+    return {
+      items: all.slice(start, end),
+      nextCursor: end < all.length ? String(end) : null,
+      ...(cursor ? {} : { total: all.length }),
+    };
+  };
+  await c.reload();
+  ok(asked[0] === null && c.items.length === 10 && c.hasMore === true, 'cursor: first page asks with null');
+  await c.loadMore();
+  ok(asked[1] === '10' && c.items.length === 20, 'cursor: next page asks with nextCursor');
+  ok(c.total === 25, 'cursor: total from the first page is kept');
+  await c.loadMore();
+  ok(c.items.length === 25 && c.hasMore === false, 'cursor: null nextCursor ends the list');
+  await c.loadMore();
+  ok(asked.length === 3, 'cursor: loadMore past end does not call the source');
+  await c.reload();
+  await c.loadMore();
+  ok(asked.length === 3 && c.items.length === 20, 'cursor: cached pages restore their cursors');
+}
+
+// A full page with a null cursor still ends the list: the cursor outranks page length.
+{
+  const c = new DataController(fakeHost(), { pageSize: 10, debounceMs: 5 });
+  c.dataSource = () => ({ items: range(10), nextCursor: null });
+  await c.reload();
+  ok(c.hasMore === false, 'cursor: null ends the list even after a full page');
+}
+
+// Sources that paginate by offset never see a cursor.
+{
+  const all = range(25);
+  const cursors: (string | null)[] = [];
+  const c = new DataController(fakeHost(), { pageSize: 10, debounceMs: 5 });
+  c.dataSource = ({ cursor, offset, limit }) => {
+    cursors.push(cursor);
+    return all.slice(offset, offset + limit);
+  };
+  await c.reload();
+  await c.loadMore();
+  ok(cursors.every((cursor) => cursor === null) && c.items.length === 20, 'offset sources are unchanged');
+}
+
 console.log(`\nAll ${passed} assertions passed.`);
