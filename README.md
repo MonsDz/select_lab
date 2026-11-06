@@ -12,7 +12,7 @@ Built for the case a native `<select>` (and even select2 / ng-select) struggles 
 - **Data-driven icons & colors** per option (icon, icon color, text color, background — from your data, not hardcoded) — with adapters for emoji, raw SVG, any icon library that ships a custom element (`<ion-icon>`, `<iconify-icon>`, …), and ligature icon fonts. See [Icons](#icons).
 - **Display ≠ value**: show `name + description + icon`, return just the `id`.
 - **Closes on anything outside the flow** — click outside, Escape, or scrolling the page/an ancestor — on by default. No detach, no manual scroll listeners to wire up yourself.
-- **Real form control** (`ElementInternals`, `formAssociated`) + ARIA combobox keyboard support.
+- **Real form control** (`ElementInternals`, `formAssociated`) + ARIA combobox keyboard support. See [Accessibility](#accessibility).
 - **Themeable** via CSS custom properties and `::part()` — no `!important`, plugs into whatever design system the host app already has.
 
 ## Install
@@ -61,16 +61,19 @@ Pure-HTML alternative (library does the fetch):
 ## Data contract
 
 ```ts
-type LoadParams  = { search: string; offset: number; limit: number; signal: AbortSignal };
-type DataSource  = (p: LoadParams) => Promise<{ items: T[]; total?: number } | T[]>;
+type LoadParams  = { search: string; offset: number; limit: number; cursor: string | null; signal: AbortSignal };
+type DataSource  = (p: LoadParams) => Promise<{ items: T[]; total?: number; nextCursor?: string | null } | T[]>;
 ```
 
 - Return `{ items, total }` for an exact end-of-list; or a **bare `T[]`** (compatible with services that already return arrays) — end-of-list is then inferred from a short page.
+- **Cursor (keyset) pagination:** return `nextCursor`, and `null` on the last page. You receive it back as `cursor` on the next request. The cost of a page stays flat however deep the user scrolls, unlike `OFFSET`. `total` is optional and only needs to come with the first page.
 - `.items = [...]` (a static array property) turns it into a normal in-memory select (client-side filter, no pagination).
 
 ## Icons
 
 Works with whatever icon system your app already has — no rewrite needed. `icon-field` auto-detects the shape of the value; for full control, `.iconRenderer` calls straight into your own icon library's API.
+
+Icon values usually come from data, so markup only renders when it can do nothing but draw an icon: plain SVG shapes, an empty `<i>`/`<span>` glyph, an `<img>`, or an icon-library tag with plain attributes. Scripts, event handlers, links, styles and other tags are skipped, with one console warning. If no icon value comes from user data and you need other markup, set `allow-icon-html`. A `TemplateResult` from `.iconRenderer` is your own code, so it always renders.
 
 | Your icon data looks like… | How to wire it |
 | --- | --- |
@@ -97,6 +100,11 @@ Framework **components** (Angular `<mat-icon>`, a Vue/Svelte icon component) can
 | `icon-font-family` | — | ligature icon font by family name (see [Icons](#icons)) |
 | `icon-font-class` | — | extra class on the icon glyph, for use with `inherit-styles` |
 | `inherit-styles` | `false` | clone the page's stylesheets into the shadow root (class-based icon fonts) |
+| `allow-icon-html` | `false` | render any markup in an icon value (see [Icons](#icons)); only when no icon value comes from user data |
+| `label` | — | accessible name (see [Accessibility](#accessibility)) |
+| `described-by` | — | space-separated ids of the elements that describe the field, such as a hint or an error |
+| `invalid` | `false` | marks the field as invalid, for screen readers and with `--sl-invalid-border` |
+| `.texts` | English | translations: `{ loading, error, retry, empty, remove, required }` |
 | `page-size` | `50` | rows per request |
 | `debounce` | `300` | search debounce (ms) |
 | `option-height` | `44` | fixed row height (px) — used by virtualization |
@@ -118,7 +126,16 @@ select-lab::part(panel)  { border-radius: 16px; }
 select-lab::part(option) { padding-inline: 16px; }
 ```
 
+A field with a value keeps the accent ring by default. To match other inputs, set `--sl-filled-border` and `--sl-filled-shadow` (the look with a value), and `--sl-focus-outline` (the extra mark on keyboard focus).
+
 Dark mode follows `prefers-color-scheme`; force it with `theme="dark"` / `theme="light"`.
+
+## Accessibility
+
+- **Name:** taken from `label`, then from an associated `<label for>`, then from the placeholder. A `<label>` also focuses the field when clicked.
+- **Keyboard:** arrows, Home, End, Enter and Space, with Tab moving on to the next field. Escape closes only the list, so a dialog or drawer around it stays open. Focus returns to the field after choosing or closing.
+- **Screen readers:** options report their position in the whole list, even while virtualized, and loading, empty and error states are announced.
+- **Errors:** a failed load offers a retry, by button or Enter, and reopening retries too.
 
 ## Framework usage
 
@@ -162,6 +179,9 @@ npm run build          # tree-shakeable ESM library → dist/
 npm run typecheck
 npm test               # DataController engine (pagination/search/cache/abort)
 npm run test:browser   # drives the real UI in Chrome (needs the dev server running)
+npm run test:a11y      # axe audit, keyboard, focus and screen-reader wiring
+npm run test:compat    # what existing integrations rely on
+npm run test:icons     # icon values that must never run code
 ```
 
 ## Contributing
