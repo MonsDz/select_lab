@@ -124,6 +124,9 @@ export class SelectLabBase extends LitElement {
   @query('.listbox') private listEl!: HTMLElement | null;
   @query('.search') private searchEl!: HTMLInputElement | null;
 
+  /** The last press on the control came from a finger or a pen (see onOpened). */
+  private openedByTouch = false;
+
   constructor() {
     super();
     this.internals = this.attachInternals();
@@ -239,6 +242,10 @@ export class SelectLabBase extends LitElement {
     this.open = !this.open;
   };
 
+  private onControlPointerDown = (e: PointerEvent) => {
+    this.openedByTouch = e.pointerType === 'touch' || e.pointerType === 'pen';
+  };
+
   close() {
     if (this.open) this.open = false;
   }
@@ -252,21 +259,29 @@ export class SelectLabBase extends LitElement {
     else this.data.ensureLoaded();
     this.dismiss.activate();
     this.resetActive();
+    // On a phone, focusing the search raises the keyboard, which covers the list: a finger
+    // opens it without that (the search is one tap away). A mouse or the keyboard still
+    // land in the search.
+    const byTouch = this.openedByTouch;
+    this.openedByTouch = false;
     this.updateComplete.then(() => {
       if (this.panelEl && this.controlEl) {
         this.positioning.maxHeight = 320;
-        // if we're closing on outside scroll anyway, don't also chase the anchor —
-        // avoids redundant repositioning work in the instant before the panel closes
-        this.positioning.followScroll = !this.closeOnScroll;
+        // Only a scroll the user asks for closes the list (DismissController); when the page
+        // moves on its own (a phone keyboard, a focus) the panel follows its control instead.
+        this.positioning.followScroll = true;
         this.positioning.start(this.controlEl, this.panelEl);
       }
-      if (this.searchEl) this.searchEl.focus();
+      // preventScroll: focusing must never move the page under the open list
+      if (this.searchEl && !byTouch) this.searchEl.focus({ preventScroll: true });
       this.syncVirtual();
     });
     this.emit('open');
   }
 
   private onClosed() {
+    // a finger that closed the list says nothing about how the next open will be
+    this.openedByTouch = false;
     this.positioning.stop();
     this.dismiss.deactivate();
     if (this.restoreFocus) {
@@ -556,6 +571,7 @@ export class SelectLabBase extends LitElement {
         aria-disabled=${this.disabled ? 'true' : nothing}
         aria-busy=${this.resolving ? 'true' : nothing}
         tabindex=${this.disabled ? -1 : 0}
+        @pointerdown=${this.onControlPointerDown}
         @click=${this.toggle}
         @focus=${this.syncDescribedBy}
         @keydown=${this.onKeyDown}
