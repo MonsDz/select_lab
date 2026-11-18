@@ -1,6 +1,6 @@
 {
   "name": "select-lab",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Framework-agnostic super-select web components (single & multi) with server-side pagination, search, virtualization and data-driven theming.",
   "type": "module",
   "license": "MIT",
